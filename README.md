@@ -1,4 +1,4 @@
-## Multi-Tenant Centralized Logging using Azure Lighthouse
+## Multi-Tenant Centralized Logging Using Azure Lighthouse
 - Service Provider: The tenant whose logs should be sent to a Central Log Analytics Workspace which is present in another tenant.
 - Customer: The tenant where the Central Log Analytics Workspace exists.
 
