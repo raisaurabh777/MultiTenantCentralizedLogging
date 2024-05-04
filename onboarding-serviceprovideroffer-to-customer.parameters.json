@@ -1,0 +1,31 @@
+{
+  "$schema": "https://schema.management.azure.com/schemas/2019-04-01/deploymentParameters.json#",
+  "contentVersion": "1.0.0.0",
+  "parameters": {
+    "mspOfferName": {
+      "value": "Centralized-Logging-Offer-From-Service-Provider"
+    },
+    "mspOfferDescription": {
+      "value": "Centralized Logging Offer From Service Provider which needs to be imported in Customer Tenant"
+    },
+    "authorizations": {
+      "value": [
+        {
+          "principalId": "<< principalId of ADO group in service provider >>",
+          "roleDefinitionId": "92aaf0da-9dab-42b6-94a3-d43ce8d16293",  // Log Analytics Contributor
+          "principalIdDisplayName": "<< Display Name for Security Group in Service Provider >>"
+        },
+        { 
+          "principalId": "<< principalId of ADO group in service provider >>", 
+          "roleDefinitionId": "749f88d5-cbae-40b8-bcfc-e573ddc772fa", // Monitoring Contributor
+          "principalIdDisplayName": "<< Display Name for Security Group in Service Provider >>"
+        },
+        { 
+          "principalId": "<< principalId of ADO group in service provider >>", 
+          "roleDefinitionId": "b24988ac-6180-42a0-ab88-20f7382dd24c", // Contributor
+          "principalIdDisplayName": "<< Display Name for Security Group in Service Provider >>"
+        }
+      ]
+    }
+  }
+}

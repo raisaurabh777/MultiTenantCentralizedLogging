@@ -1,0 +1,99 @@
+trigger: none
+pr: none
+
+pool:
+  name: << Name of the agent pool >>
+
+parameters:
+   - name : Location
+     displayName: Location
+     default: Eastus2
+     values:
+      - Eastus2
+      - westus
+      - centralus
+
+    
+name: 'INFRA_DEPLOY_Tenant_$(SourceBranchName)_$(Date:yyyyMMdd)$(Rev:.r)'
+stages:
+################ Linting and Validation ########################################
+- stage: Build
+  displayName: Build bicep code
+  jobs:
+        - job:
+          displayName: Build bicep code
+          steps:
+          - checkout: self
+          - pwsh: |
+              Get-ChildItem -Path $(Build.SourcesDirectory) -Filter *.bicep | foreach { az bicep build -f $_.FullName }
+            displayName: 'Run Bicep linter'   
+          - task: CopyFiles@2
+            inputs:
+              sourceFolder: '$(Build.SourcesDirectory)'
+              targetFolder: '$(Build.ArtifactStagingDirectory)'
+
+          - task: PublishPipelineArtifact@1
+            inputs:
+              targetPath: $(System.DefaultWorkingDirectory)
+              artifactName: infratenantlevel
+
+- stage: Valdiate_light_house_offer
+  displayName: serviceprovider-customer-validate
+  jobs: 
+       - job: Valdiate_light_house_bicepmodule
+         displayName: Validate service provider offer
+         steps:
+           - task: DownloadBuildArtifacts@0
+             inputs:
+                 buildType: 'current'
+                 downloadType: 'single'
+                 artifactName: 'infratenantlevel'
+                 downloadPath: '$(System.ArtifactsDirectory)'
+           - task: AzureKeyVault@2
+             inputs:
+               azureSubscription: << Name of the service connection >>
+               KeyVaultName: << Name of the keyvault >>
+               SecretsFilter: '*'
+               RunAsPreJob: true
+           - ${{ each env in parameters.Onboardtenant }}: 
+              - task: Bash@3
+                displayName: 'Lighthouse-onboard-serviceprovider-offer-to-customer'
+                enabled: true
+                inputs:
+                  targetType: 'inline'
+                  script: |             
+                      az --version
+                      az login --service-principal -u << client-id-customer >> -p << client-secret-customer >> --tenant << tenantid-customer >>
+                      az account set --subscription << subscription id of customer where central LAW is placed >>
+                      az deployment sub create --name onboard-serviceprovider-to-customer --location eastus2 --template-file ./Modules/Azurelighthouse/onboarding-serviceprovideroffer-to-customer.json --parameters ./Modules/Azurelighthouse/onboarding-serviceprovideroffer-to-customer.parameters.json --parameters rgName=<< Resource group of Central Log Analytics Workspace>> managedByTenantId=<< tenantid of service provider >> --verbose --what-if
+
+- stage: Deploy_light_house_offer
+  displayName: deploy serviceprovider customer validate
+  dependsOn: 
+      - Valdiate_light_house_offer
+  jobs: 
+       - job: Deploy_light_housebicepmodule
+         displayName: deploy service provider offer
+         steps:
+           - task: DownloadBuildArtifacts@0
+             inputs:
+                 buildType: 'current'
+                 downloadType: 'single'
+                 artifactName: 'infratenantlevel'
+                 downloadPath: '$(System.ArtifactsDirectory)'
+           - task: AzureKeyVault@2
+             inputs:
+               azureSubscription: << Name of the service connection >>
+               KeyVaultName: << Name of the keyvault >>
+               SecretsFilter: '*'
+               RunAsPreJob: true 
+           - task: Bash@3
+             displayName: 'Lighthouse-onboard-serviceprovider-offer-to-customer'
+             enabled: true
+             inputs:
+                targetType: 'inline'
+                script: |             
+                      az --version
+                      az login --service-principal -u << client-id-customer >> -p << client-secret-customer >> --tenant << tenantid-customer >>
+                      az account set --subscription << subscription id of customer where central LAW is placed >>
+                      az deployment sub create --name onboard-serviceprovider-to-customer --location eastus2 --template-file ./Modules/Azurelighthouse/onboarding-serviceprovideroffer-to-customer.json --parameters ./Modules/Azurelighthouse/onboarding-serviceprovideroffer-to-customer.parameters.json --parameters rgName=<< Resource group of Central Log Analytics Workspace>> managedByTenantId=<< tenantid of service provider >> --verbose
